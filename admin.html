@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    <style>
+        :root {
+            --dark-bg: #0a0a12;
+            --card-bg: #12121f;
+            --card-border: #25253d;
+            --accent: #6a2cbe;
+            --accent-light: #8d5ee3;
+            --text: #ffffff;
+            --text-secondary: #b3b3cc;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', 'Arial', sans-serif;
+        }
+        
+        body {
+            background-color: var(--dark-bg);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .admin-container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 20px 0;
+        }
+        
+        .header h1 {
+            font-size: 2.2rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: var(--text);
+            letter-spacing: 0.5px;
+        }
+        
+        .admin-actions {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 30px;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-light));
+            color: var(--text);
+            padding: 14px 28px;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 20px rgba(106, 44, 190, 0.3);
+            border: none;
+            cursor: pointer;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(106, 44, 190, 0.4);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+        }
+        
+        .btn-warning {
+            background: linear-gradient(135deg, #ffa726, #f57c00);
+        }
+        
+        .applications-list {
+            display: grid;
+            gap: 20px;
+        }
+        
+        .application-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 25px;
+            border: 1px solid var(--card-border);
+            transition: all 0.3s ease;
+        }
+        
+        .application-card:hover {
+            border-color: var(--accent);
+            box-shadow: 0 5px 20px rgba(106, 44, 190, 0.15);
+        }
+        
+        .application-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--card-border);
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .application-date {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        
+        .application-content {
+            display: grid;
+            gap: 18px;
+        }
+        
+        .question-item {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 8px;
+        }
+        
+        .question-text {
+            color: var(--text-secondary);
+            font-weight: 500;
+            font-size: 1rem;
+        }
+        
+        .answer-text {
+            color: var(--text);
+            background: rgba(106, 44, 190, 0.1);
+            padding: 14px 18px;
+            border-radius: 10px;
+            border-left: 3px solid var(--accent);
+            line-height: 1.5;
+            word-break: break-word;
+        }
+        
+        .no-data {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-secondary);
+        }
+        
+        .no-data i {
+            font-size: 3.5rem;
+            margin-bottom: 20px;
+            color: var(--accent);
+            opacity: 0.7;
+        }
+        
+        .no-data h3 {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+            color: var(--text);
+        }
+        
+        .application-source {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .device-info {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px dashed var(--card-border);
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px 20px;
+        }
+        
+        .loading i {
+            font-size: 2rem;
+            color: var(--accent);
+            margin-bottom: 15px;
+        }
+        
+        @media (max-width: 768px) {
+            .application-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .btn {
+                width: 100%;
+                padding: 12px 20px;
+            }
+            
+            .admin-actions {
+                flex-direction: column;
+            }
+        }
+        
+        /* Анимации */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(15px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease forwards;
+        }
+        
+        .stats-bar {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: var(--accent-light);
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <div class="header fade-in">
+            <h1>Анкеты клиентов</h1>
+        </div>
+        
+        <div class="stats-bar" id="statsBar">
+            <div class="stat-item">
+                <div class="stat-number" id="totalApps">0</div>
+                <div class="stat-label">Всего заявок</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="mobileApps">0</div>
+                <div class="stat-label">С мобильных</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="desktopApps">0</div>
+                <div class="stat-label">С компьютеров</div>
+            </div>
+        </div>
+        
+        <div class="admin-actions">
+            <button class="btn fade-in" onclick="loadApplications()">
+                <i class="fas fa-sync-alt"></i> Обновить
+            </button>
+            <button class="btn btn-warning fade-in" onclick="syncLocalToFirebase()">
+                <i class="fas fa-cloud-upload-alt"></i> Синхронизировать
+            </button>
+            <button class="btn btn-danger fade-in" onclick="clearAllApplications()">
+                <i class="fas fa-trash"></i> Очистить все
+            </button>
+        </div>
+        
+        <div class="applications-list" id="applicationsList">
+            <div class="no-data fade-in">
+                <i class="fas fa-inbox"></i>
+                <h3>Заявок пока нет</h3>
+                <p>Новые анкеты появятся здесь</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // Конфигурация Firebase
+    let firebaseInitialized = false;
+    
+    // Функция для загрузки и отображения заявок
+    async function loadApplications() {
+        // Показываем индикатор загрузки
+        const applicationsList = document.getElementById('applicationsList');
+        applicationsList.innerHTML = `
+            <div class="loading">
+                <i class="fas fa-spinner fa-spin"></i>
+                <h3>Загрузка данных...</h3>
+            </div>
+        `;
+        
+        try {
+            let allApplications = [];
+            
+            // Пытаемся загрузить из Firebase
+            const firebaseApps = await loadFromFirebase();
+            if (firebaseApps && firebaseApps.length > 0) {
+                console.log('Загружено из Firebase:', firebaseApps.length, 'заявок');
+                allApplications = [...allApplications, ...firebaseApps];
+            }
+            
+            // Всегда загружаем из localStorage
+            const localApps = JSON.parse(localStorage.getItem('propaganda_applications') || '[]');
+            console.log('Загружено из localStorage:', localApps.length, 'заявок');
+            allApplications = [...allApplications, ...localApps];
+            
+            // Удаляем дубликаты по ID
+            const uniqueApplications = removeDuplicates(allApplications);
+            
+            if (uniqueApplications.length > 0) {
+                displayApplications(uniqueApplications);
+                updateStats(uniqueApplications);
+            } else {
+                applicationsList.innerHTML = `
+                    <div class="no-data">
+                        <i class="fas fa-inbox"></i>
+                        <h3>Заявок пока нет</h3>
+                        <p>Новые анкеты появятся здесь</p>
+                    </div>
+                `;
+                updateStats([]);
+            }
+        } catch (error) {
+            console.error('Ошибка загрузки данных:', error);
+            // Загружаем только из localStorage как запасной вариант
+            const applications = JSON.parse(localStorage.getItem('propaganda_applications') || '[]');
+            displayApplications(applications);
+            updateStats(applications);
+        }
+    }
+    
+    // Удаление дубликатов
+    function removeDuplicates(applications) {
+        const seen = new Set();
+        return applications.filter(app => {
+            // Используем ID или комбинацию данных для идентификации уникальности
+            const identifier = app.id || `${app.timestamp}-${app.telegram}-${app.name}`;
+            if (seen.has(identifier)) {
+                return false;
+            }
+            seen.add(identifier);
+            return true;
+        });
+    }
+    
+    // Обновление статистики
+    function updateStats(applications) {
+        const total = applications.length;
+        const mobile = applications.filter(app => 
+            app.isMobile || /iPhone|iPad|iPod|Android/i.test(app.userAgent || app.device || '')
+        ).length;
+        const desktop = total - mobile;
+        
+        document.getElementById('totalApps').textContent = total;
+        document.getElementById('mobileApps').textContent = mobile;
+        document.getElementById('desktopApps').textContent = desktop;
+    }
+    
+    // Загрузка данных из Firebase
+    async function loadFromFirebase() {
+        try {
+            if (typeof firebaseConfig === 'undefined') {
+                console.log('Firebase config не найден');
+                return [];
+            }
+            
+            // Инициализируем Firebase только если еще не инициализирован
+            if (!firebaseInitialized) {
+                firebase.initializeApp(firebaseConfig);
+                firebaseInitialized = true;
+            }
+            
+            const db = firebase.firestore();
+            
+            const querySnapshot = await db.collection('applications').orderBy('timestamp', 'desc').get();
+            const applications = [];
+            
+            querySnapshot.forEach(doc => {
+                applications.push(doc.data());
+            });
+            
+            return applications;
+        } catch (error) {
+            console.error('Ошибка загрузки из Firebase:', error);
+            return [];
+        }
+    }
+    
+    // Синхронизация локальных данных с Firebase
+    async function syncLocalToFirebase() {
+        try {
+            const localApps = JSON.parse(localStorage.getItem('propaganda_applications') || '[]');
+            
+            if (localApps.length === 0) {
+                alert('Нет локальных данных для синхронизации');
+                return;
+            }
+            
+            if (typeof firebaseConfig === 'undefined') {
+                alert('Firebase не настроен. Невозможно синхронизировать.');
+                return;
+            }
+            
+            // Показываем индикатор загрузки
+            const applicationsList = document.getElementById('applicationsList');
+            applicationsList.innerHTML = `
+                <div class="loading">
+                    <i class="fas fa-sync fa-spin"></i>
+                    <h3>Синхронизация с Firebase...</h3>
+                </div>
+            `;
+            
+            // Инициализируем Firebase
+            if (!firebaseInitialized) {
+                firebase.initializeApp(firebaseConfig);
+                firebaseInitialized = true;
+            }
+            
+            const db = firebase.firestore();
+            
+            // Получаем существующие данные из Firebase для проверки дубликатов
+            const firebaseSnapshot = await db.collection('applications').get();
+            const firebaseIds = new Set();
+            
+            firebaseSnapshot.forEach(doc => {
+                const data = doc.data();
+                if (data.id) firebaseIds.add(data.id);
+            });
+            
+            // Добавляем только те записи, которых нет в Firebase
+            let addedCount = 0;
+            for (const app of localApps) {
+                if (app.id && !firebaseIds.has(app.id)) {
+                    await db.collection('applications').add(app);
+                    addedCount++;
+                }
+            }
+            
+            if (addedCount > 0) {
+                alert(`Синхронизировано ${addedCount} заявок с Firebase`);
+            } else {
+                alert('Все данные уже синхронизированы с Firebase');
+            }
+            
+            // Перезагружаем данные
+            loadApplications();
+            
+        } catch (error) {
+            console.error('Ошибка синхронизации с Firebase:', error);
+            alert('Ошибка синхронизации: ' + error.message);
+            loadApplications();
+        }
+    }
+    
+    // Функция для отображения заявок
+    function displayApplications(applications) {
+        const applicationsList = document.getElementById('applicationsList');
+        
+        if (applications.length === 0) {
+            applicationsList.innerHTML = `
+                <div class="no-data">
+                    <i class="fas fa-inbox"></i>
+                    <h3>Заявок пока нет</h3>
+                    <p>Новые анкеты появятся здесь</p>
+                </div>
+            `;
+            return;
+        }
+        
+        applicationsList.innerHTML = '';
+        
+        // Сортируем по дате (новые сверху)
+        applications.sort((a, b) => {
+            const dateA = new Date(a.timestamp || a.id);
+            const dateB = new Date(b.timestamp || b.id);
+            return dateB - dateA;
+        }).forEach(app => {
+            const appElement = document.createElement('div');
+            appElement.className = 'application-card fade-in';
+            
+            // Форматируем дату
+            const date = new Date(app.timestamp || app.id);
+            const formattedDate = date.toLocaleString('ru-RU', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            
+            // Определяем источник данных
+            const isMobile = app.isMobile || /iPhone|iPad|iPod|Android/i.test(app.userAgent || app.device || '');
+            const deviceType = isMobile ? 'Мобильное устройство' : 'Компьютер';
+            const platform = app.platform || 'Неизвестно';
+            
+            appElement.innerHTML = `
+                <div class="application-header">
+                    <div class="application-date">${formattedDate}</div>
+                    <div class="application-source">
+                        <i class="fas ${isMobile ? 'fa-mobile-alt' : 'fa-desktop'}"></i>
+                        ${deviceType}
+                    </div>
+                </div>
+                <div class="application-content">
+                    <div class="question-item">
+                        <div class="question-text">Какие услуги тебя интересуют?</div>
+                        <div class="answer-text">${app.services || 'Не указано'}</div>
+                    </div>
+                    <div class="question-item">
+                        <div class="question-text">Ссылки на соцсети, которые хочешь продвигать</div>
+                        <div class="answer-text">${app.socialLinks || 'Не указаны'}</div>
+                    </div>
+                    <div class="question-item">
+                        <div class="question-text">Ссылка на твой телеграм для связи</div>
+                        <div class="answer-text">${app.telegram || 'Не указана'}</div>
+                    </div>
+                    <div class="question-item">
+                        <div class="question-text">Твоё имя</div>
+                        <div class="answer-text">${app.name || 'Не указано'}</div>
+                    </div>
+                </div>
+                <div class="device-info">
+                    <div>Платформа: ${platform}</div>
+                    <div>Язык: ${app.language || 'RU'}</div>
+                    <div>ID: ${app.id || 'Нет'}</div>
+                </div>
+            `;
+            
+            applicationsList.appendChild(appElement);
+        });
+    }
+    
+    // Функция для очистки всех заявок
+    async function clearAllApplications() {
+        if (confirm("Вы уверены, что хотите удалить все заявки? Это действие нельзя отменить.")) {
+            // Очищаем localStorage
+            localStorage.removeItem('propaganda_applications');
+            
+            // Очищаем Firebase (если доступно)
+            try {
+                if (typeof firebaseConfig !== 'undefined') {
+                    if (!firebaseInitialized) {
+                        firebase.initializeApp(firebaseConfig);
+                        firebaseInitialized = true;
+                    }
+                    const db = firebase.firestore();
+                    
+                    const querySnapshot = await db.collection('applications').get();
+                    const batch = db.batch();
+                    
+                    querySnapshot.forEach(doc => {
+                        batch.delete(doc.ref);
+                    });
+                    
+                    await batch.commit();
+                    console.log('Все заявки удалены из Firebase');
+                }
+            } catch (error) {
+                console.error('Ошибка удаления из Firebase:', error);
+            }
+            
+            loadApplications();
+            alert("Все заявки удалены");
+        }
+    }
+    
+    // Загружаем заявки при открытии страницы
+    document.addEventListener('DOMContentLoaded', loadApplications);
+    
+    // Автоматическое обновление каждые 30 секунд
+    setInterval(loadApplications, 30000);
+</script>
+</body>
+</html>
